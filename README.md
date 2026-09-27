@@ -39,6 +39,11 @@ Mở `http://localhost:3000/app/`, đăng ký tài khoản, vào **Shop → Tạ
 
 ## Đưa lên mạng (homepage)
 
+**Miễn phí trên Oracle Cloud Always Free:** xem hướng dẫn từng bước và script cài đặt một lệnh tại [`deploy/oracle/README.md`](deploy/oracle/README.md).
+
+Hoặc tự cài trên máy chủ bất kỳ:
+
+
 1. Thuê VPS / dịch vụ chạy Node (hoặc Docker), trỏ tên miền về máy chủ, bật HTTPS (Nginx/Caddy/Cloudflare).
 2. Sao chép `.env.example` → `.env`, điền `APP_SECRET` (chuỗi ngẫu nhiên) và `SITE_URL` là tên miền thật.
 3. Chạy:

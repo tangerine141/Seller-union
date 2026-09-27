@@ -1,0 +1,9 @@
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# Muốn www.tenmien.vn chuyển về tenmien.vn: tạo bản ghi DNS cho www rồi bỏ dấu # ở 3 dòng dưới.
+# www.{$DOMAIN} {
+# 	redir https://{$DOMAIN}{uri} permanent
+# }

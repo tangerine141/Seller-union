@@ -1,0 +1,45 @@
+# Chạy Seller Union + Caddy (HTTPS tự động từ Let's Encrypt).
+# Dùng: docker compose -f deploy/oracle/docker-compose.yml --env-file .env up -d --build
+name: seller-union
+
+services:
+  app:
+    build:
+      context: ../..
+    env_file: ../../.env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_FILE: /app/data/seller-union.db
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+    expose:
+      - "3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?Thiếu DOMAIN trong .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:
