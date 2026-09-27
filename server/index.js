@@ -1,5 +1,12 @@
 'use strict';
 
+// Cần Node.js >= 22.5 (có SQLite tích hợp). Báo lỗi dễ hiểu thay vì lỗi module khó đọc.
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 22 || (major === 22 && minor < 5)) {
+  console.error(`Seller Union cần Node.js 22.5 trở lên (máy đang có ${process.versions.node}). Tải bản LTS mới tại https://nodejs.org`);
+  process.exit(1);
+}
+
 const config = require('./config');
 const { open } = require('./db');
 const { createApp } = require('./app');

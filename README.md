@@ -25,17 +25,31 @@ Gồm 2 phần chạy chung trên một máy chủ:
   - Bảng kê bàn giao theo đơn vị vận chuyển, có chỗ ký.
 - **Xuất CSV** (UTF‑8 có BOM, mở thẳng bằng Excel/Google Sheets): đơn hàng chi tiết từng sản phẩm, doanh thu theo ngày, sản phẩm & tồn kho.
 
-## Chạy thử
+## Chạy thử trên máy tính của bạn
 
-Yêu cầu **Node.js ≥ 22.5** (dùng SQLite có sẵn trong Node, không cần cài database).
+1. Cài **Node.js bản LTS** (22.5 trở lên) tại https://nodejs.org. Cứ bấm Next đến hết.
+2. Tải mã nguồn: trên GitHub chọn nhánh `claude/multi-platform-shop-connector-hpo1n8` → **Code → Download ZIP**, rồi giải nén.
+   (Hoặc dùng git: `git clone -b claude/multi-platform-shop-connector-hpo1n8 https://github.com/tangerine141/Seller-union.git`)
+3. Mở thư mục vừa giải nén và bấm đúp:
+   - **Windows:** `start-windows.bat`
+   - **macOS:** `start-mac.command` (lần đầu nếu bị chặn: chuột phải → **Open** → **Open**)
+
+   Lần đầu sẽ mất 1–2 phút để cài đặt. Sau đó trình duyệt tự mở `http://localhost:3000/app/`.
+4. Đăng ký tài khoản (chỉ lưu trên máy bạn) → **Shop → Tạo shop demo** để xem với dữ liệu mẫu.
+5. Trang chủ giới thiệu: `http://localhost:3000`. Tắt phần mềm: đóng cửa sổ đen (hoặc nhấn Ctrl+C).
+
+Dữ liệu nằm trong thư mục `data/`. Xóa thư mục này để làm lại từ đầu.
+
+**Xem trên điện thoại** (cùng Wi‑Fi với máy tính): mở `http://<IP-máy-tính>:3000/app/` trên điện thoại. IP xem bằng lệnh `ipconfig` (Windows, dòng IPv4) hoặc *Cài đặt hệ thống → Wi‑Fi → Chi tiết* (macOS). Nếu Windows hỏi tường lửa, chọn **Allow**. Nút "Thêm vào màn hình chính" dạng app chỉ hoạt động khi đã đưa lên mạng có HTTPS.
+
+Dành cho lập trình viên:
 
 ```bash
 npm install
 npm start            # http://localhost:3000
-npm test             # chạy test
+npm run dev          # tự khởi động lại khi sửa code
+npm test
 ```
-
-Mở `http://localhost:3000/app/`, đăng ký tài khoản, vào **Shop → Tạo shop demo** để xem thử với dữ liệu mẫu.
 
 ## Đưa lên mạng (homepage)
 
