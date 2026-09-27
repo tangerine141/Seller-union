@@ -1,0 +1,21 @@
+{
+  "name": "Seller Union – Quản lý bán hàng đa sàn",
+  "short_name": "Seller Union",
+  "description": "Đơn hàng, thống kê, in phiếu cho Shopee, Lazada, TikTok Shop, WooCommerce tại một nơi.",
+  "lang": "vi",
+  "start_url": "/app/",
+  "scope": "/app/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Đơn hàng", "url": "/app/#/orders" },
+    { "name": "Thống kê", "url": "/app/#/" }
+  ]
+}

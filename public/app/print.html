@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>In phiếu – Seller Union</title>
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<style id="pageSize">@page { size: A4; margin: 10mm; }</style>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, 'Helvetica Neue', sans-serif; color: #000; background: #e5e7eb; font-size: 12px; }
+  .toolbar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: #111827; color: #fff; }
+  .toolbar select, .toolbar button { font: inherit; font-size: 14px; min-height: 38px; border-radius: 8px; border: 0; padding: 6px 10px; }
+  .toolbar button { background: #4f46e5; color: #fff; font-weight: 700; cursor: pointer; }
+  .toolbar .info { margin-right: auto; font-size: 14px; }
+  .pages { padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .sheet { background: #fff; width: var(--w); min-height: var(--h); padding: var(--pad); box-shadow: 0 2px 8px rgba(0,0,0,.15); overflow: hidden; }
+  .paper-80mm .sheet { min-height: 0; }
+  .row { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .box { border: 1px solid #000; padding: 6px 8px; margin-top: 6px; }
+  .label { font-size: 0.85em; text-transform: uppercase; font-weight: 700; color: #333; }
+  h1 { font-size: 1.5em; margin: 0; }
+  h2 { font-size: 1.15em; margin: 0 0 4px; }
+  .big { font-size: 1.25em; font-weight: 700; }
+  .barcode { display: block; width: 100%; max-width: 100%; height: 44px; margin: 4px 0 0; }
+  .code { text-align: center; font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 1px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  th, td { border: 1px solid #000; padding: 3px 5px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; }
+  td.r, th.r { text-align: right; }
+  td.c, th.c { text-align: center; }
+  .total { font-size: 1.3em; font-weight: 700; }
+  .muted { color: #444; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; text-align: center; }
+  .sign div { height: 80px; }
+  .empty { padding: 40px; text-align: center; background: #fff; }
+  .paper-a6 .sheet, .paper-80mm .sheet { font-size: 11px; }
+  .paper-80mm table th, .paper-80mm table td { border-left: 0; border-right: 0; }
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .pages { padding: 0; gap: 0; display: block; }
+    .sheet { box-shadow: none; width: auto; min-height: 0; padding: 0; page-break-after: always; break-after: page; }
+    .sheet:last-child { page-break-after: auto; break-after: auto; }
+    th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+  @media (max-width: 600px) { .pages { padding: 8px; } .sheet { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <span class="info" id="info">Đang tải…</span>
+  <select id="type" aria-label="Loại phiếu">
+    <option value="invoice">Phiếu giao hàng</option>
+    <option value="picklist">Danh sách lấy hàng</option>
+    <option value="manifest">Bảng kê bàn giao</option>
+  </select>
+  <select id="paper" aria-label="Khổ giấy">
+    <option value="a4">A4</option>
+    <option value="a5">A5</option>
+    <option value="a6">A6 (tem 10×15)</option>
+    <option value="80mm">Máy in nhiệt 80mm</option>
+  </select>
+  <button id="printBtn" type="button">🖨️ In</button>
+</div>
+<div class="pages" id="pages"></div>
+<script src="/app/print.js" type="module"></script>
+</body>
+</html>
