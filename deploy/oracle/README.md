@@ -31,6 +31,17 @@ Cần chuẩn bị:
 5. **Add SSH keys**: chọn **Generate a key pair** → **Save private key** (lưu file `.key` cẩn thận).
 6. **Create**. Đợi trạng thái **Running**, ghi lại **Public IP address**.
 
+### Báo "Out of capacity"?
+
+Vùng đang hết máy miễn phí. Dùng script tự thử lại trong **Cloud Shell** (biểu tượng `>_` góc trên bên phải trang Oracle):
+
+```bash
+git clone -b claude/multi-platform-shop-connector-hpo1n8 https://github.com/tangerine141/Seller-union.git seller-union
+bash seller-union/deploy/oracle/create-vm.sh
+```
+
+Script thử A1.Flex (1 OCPU/6GB) và E2.1.Micro mỗi 60 giây cho tới khi tạo được, rồi in ra Public IP. SSH key được tạo sẵn trong Cloud Shell nên đăng nhập bằng `ssh ubuntu@<IP>` ngay trong Cloud Shell (không cần file .key). Nâng tài khoản lên **Pay As You Go** thường giúp tạo được máy A1 dễ hơn.
+
 ## Bước 3 — Mở cổng 80 và 443 trên Oracle
 
 1. Trong trang instance → mục **Primary VNIC** → bấm vào **Subnet**.
