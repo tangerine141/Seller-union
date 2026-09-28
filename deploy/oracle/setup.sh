@@ -44,14 +44,21 @@ fi
 # 3. File cấu hình .env
 if [[ ! -f .env ]]; then
   say "Tạo file cấu hình .env"
-  read -rp "Tên miền của bạn (vd: seller-union.vn): " DOMAIN
+  read -rp "Tên miền của bạn (vd: seller-union.vn) — để trống nếu chưa có, sẽ chạy tạm bằng IP: " DOMAIN
   DOMAIN=${DOMAIN#http://}; DOMAIN=${DOMAIN#https://}; DOMAIN=${DOMAIN%/}
-  [[ -n "$DOMAIN" ]] || { echo "Cần nhập tên miền."; exit 1; }
+  if [[ -z "$DOMAIN" ]]; then
+    IP=$(curl -fsS --max-time 5 https://ifconfig.me || true)
+    [[ -n "$IP" ]] || { echo "Không lấy được IP công khai của máy."; exit 1; }
+    DOMAIN=":80"
+    SITE_URL="http://$IP"
+  else
+    SITE_URL="https://$DOMAIN"
+  fi
   cp .env.example .env
   sed -i "s#^APP_SECRET=.*#APP_SECRET=$(openssl rand -hex 32)#" .env
-  sed -i "s#^SITE_URL=.*#SITE_URL=https://${DOMAIN}#" .env
+  sed -i "s#^SITE_URL=.*#SITE_URL=${SITE_URL}#" .env
   sed -i "s#^DB_FILE=.*#DB_FILE=/app/data/seller-union.db#" .env
-  printf '\n# Tên miền cho Caddy (HTTPS)\nDOMAIN=%s\n' "$DOMAIN" >> .env
+  printf '\n# Tên miền cho Caddy (HTTPS). ":80" = chạy tạm bằng IP, chưa có HTTPS.\nDOMAIN=%s\n' "$DOMAIN" >> .env
   chmod 600 .env
 else
   say "Dùng file .env có sẵn"
@@ -62,7 +69,7 @@ DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
 # 4. Kiểm tra DNS trỏ đúng về máy này (Let's Encrypt cần điều này để cấp HTTPS)
 PUBLIC_IP=$(curl -fsS --max-time 5 https://ifconfig.me || true)
 DNS_IP=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1 {print $1}' || true)
-if [[ -n "$PUBLIC_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then
+if [[ "$DOMAIN" != :* && -n "$PUBLIC_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then
   echo "⚠️  $DOMAIN đang trỏ về '${DNS_IP:-chưa có}', nhưng IP máy này là $PUBLIC_IP."
   echo "    Tạo bản ghi A: $DOMAIN -> $PUBLIC_IP. HTTPS sẽ tự cấp khi DNS cập nhật xong."
 fi
@@ -77,6 +84,8 @@ CRON_LINE="0 3 * * * cd $ROOT && bash deploy/oracle/backup.sh >> $ROOT/backups/b
 mkdir -p backups
 ( crontab -l 2>/dev/null | grep -v 'deploy/oracle/backup.sh' ; echo "$CRON_LINE" ) | crontab -
 
-say "Xong! Mở https://$DOMAIN (trang chủ) và https://$DOMAIN/app/ (ứng dụng)"
+SITE_URL=$(grep '^SITE_URL=' .env | cut -d= -f2)
+say "Xong! Mở $SITE_URL (trang chủ) và $SITE_URL/app/ (ứng dụng)"
+[[ "$DOMAIN" == :* ]] && echo "Đang chạy tạm bằng IP (chưa HTTPS). Khi có tên miền: xem mục \"Gắn tên miền sau\" trong deploy/oracle/README.md"
 echo "Xem log:   ${COMPOSE[*]} logs -f"
 echo "Cập nhật:  bash deploy/oracle/update.sh"

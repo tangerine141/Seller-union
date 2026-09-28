@@ -13,6 +13,8 @@ Cần chuẩn bị:
 
 ## Bước 1 — Tạo tài khoản Oracle Cloud
 
+> **Đã có tài khoản Free Trial?** Bỏ qua bước này. Lưu ý: Free Trial gồm 30 ngày dùng credit **và** các tài nguyên "Always Free". Hết 30 ngày, thứ gì không thuộc Always Free sẽ bị dừng/xóa. Vì vậy khi tạo máy ảo, chỉ chọn cấu hình có nhãn **Always Free-eligible** như hướng dẫn ở bước 2 thì máy sẽ chạy mãi sau khi hết trial.
+
 1. Vào https://www.oracle.com/cloud/free/ → **Start for free**.
 2. Điền thông tin, xác minh email và thẻ.
 3. **Home Region**: chọn **Singapore** (gần Việt Nam, tốc độ tốt). Không đổi được về sau.
@@ -38,6 +40,8 @@ Cần chuẩn bị:
 (Tường lửa bên trong máy ảo sẽ được script tự mở ở bước 6.)
 
 ## Bước 4 — Trỏ tên miền về máy chủ
+
+> **Chưa có tên miền?** Bỏ qua bước này. Ở bước 6, khi được hỏi tên miền thì cứ nhấn Enter: app sẽ chạy tạm tại `http://<PUBLIC_IP>` (chưa có HTTPS). Khi mua tên miền, xem mục **Gắn tên miền sau** ở cuối trang.
 
 Tại nơi quản lý DNS của tên miền, tạo bản ghi:
 
@@ -121,6 +125,21 @@ $C run --rm --no-deps -v "$PWD/backups:/b:ro" --entrypoint sh app -c \
   'rm -f /app/data/seller-union.db-wal /app/data/seller-union.db-shm && cp /b/seller-union-YYYYMMDD-HHMMSS.db /app/data/seller-union.db'
 $C start app
 ```
+
+## Gắn tên miền sau
+
+Khi đã chạy tạm bằng IP và giờ có tên miền:
+
+1. Tạo bản ghi DNS `A @ -> <PUBLIC_IP>` (như bước 4), đợi `ping tenmien.vn` ra đúng IP.
+2. Sửa cấu hình:
+
+   ```bash
+   cd ~/seller-union
+   sed -i 's#^DOMAIN=.*#DOMAIN=tenmien.vn#; s#^SITE_URL=.*#SITE_URL=https://tenmien.vn#' .env
+   docker compose -f deploy/oracle/docker-compose.yml --env-file .env up -d
+   ```
+
+3. Mở `https://tenmien.vn` — Caddy tự lấy chứng chỉ HTTPS trong khoảng một phút. Dữ liệu cũ giữ nguyên, nhưng cần đăng nhập lại.
 
 ## Gặp lỗi?
 

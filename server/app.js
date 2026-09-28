@@ -74,11 +74,12 @@ function createApp(db) {
   });
 
   // ---------- Phiên đăng nhập ----------
-  function createSession(res, userId) {
+  function createSession(req, res, userId) {
+    // Cookie Secure khi truy cập qua HTTPS (Caddy báo qua X-Forwarded-Proto); chạy tạm bằng IP/HTTP vẫn đăng nhập được.
     const token = crypto.randomBytes(32).toString('base64url');
     const expires = Date.now() + SESSION_DAYS * 86400000;
     db.prepare('INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)').run(sha256(token), userId, expires);
-    res.cookie('sid', token, { httpOnly: true, sameSite: 'lax', secure: config.isProd, expires: new Date(expires), path: '/' });
+    res.cookie('sid', token, { httpOnly: true, sameSite: 'lax', secure: req.secure, expires: new Date(expires), path: '/' });
   }
 
   app.use((req, res, next) => {
@@ -118,7 +119,7 @@ function createApp(db) {
     const { lastInsertRowid } = db
       .prepare('INSERT INTO users (email, name, password_hash, created_at) VALUES (?, ?, ?, ?)')
       .run(email, name || email.split('@')[0], hashPassword(password), Date.now());
-    createSession(res, Number(lastInsertRowid));
+    createSession(req, res, Number(lastInsertRowid));
     res.status(201).json({ ok: true });
   });
 
@@ -129,7 +130,7 @@ function createApp(db) {
       throw new HttpError(401, 'Sai email hoặc mật khẩu');
     }
     db.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < ?').run(user.id, Date.now());
-    createSession(res, user.id);
+    createSession(req, res, user.id);
     res.json({ ok: true });
   });
 
