@@ -11,6 +11,17 @@ say() { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
 
 if [[ $EUID -eq 0 ]]; then SUDO=""; else SUDO="sudo"; fi
 
+# 0. Máy RAM thấp (vd VM.Standard.E2.1.Micro 1GB): thêm 2GB swap để build không bị thiếu bộ nhớ.
+mem_kb=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
+if (( mem_kb < 2000000 )) && ! swapon --show | grep -q .; then
+  say "RAM thấp — tạo 2GB swap"
+  $SUDO fallocate -l 2G /swapfile || $SUDO dd if=/dev/zero of=/swapfile bs=1M count=2048
+  $SUDO chmod 600 /swapfile
+  $SUDO mkswap /swapfile >/dev/null
+  $SUDO swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | $SUDO tee -a /etc/fstab >/dev/null
+fi
+
 # 1. Docker
 if ! command -v docker >/dev/null 2>&1; then
   say "Cài Docker"
