@@ -40,7 +40,7 @@ git clone -b claude/multi-platform-shop-connector-hpo1n8 https://github.com/tang
 bash seller-union/deploy/oracle/create-vm.sh
 ```
 
-Script thử A1.Flex (1 OCPU/6GB) và E2.1.Micro mỗi 60 giây cho tới khi tạo được, rồi in ra Public IP. SSH key được tạo sẵn trong Cloud Shell nên đăng nhập bằng `ssh ubuntu@<IP>` ngay trong Cloud Shell (không cần file .key). Nâng tài khoản lên **Pay As You Go** thường giúp tạo được máy A1 dễ hơn.
+Nếu chưa có mạng, script tự tạo VCN + subnet public và mở cổng 22/80/443 (khi đó bỏ qua bước 3). Sau đó script thử A1.Flex (1 OCPU/6GB) và E2.1.Micro mỗi 60 giây cho tới khi tạo được, rồi in ra Public IP. SSH key được tạo sẵn trong Cloud Shell nên đăng nhập bằng `ssh ubuntu@<IP>` ngay trong Cloud Shell (không cần file .key). Nâng tài khoản lên **Pay As You Go** thường giúp tạo được máy A1 dễ hơn.
 
 ## Bước 3 — Mở cổng 80 và 443 trên Oracle
 

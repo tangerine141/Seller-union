@@ -26,13 +26,67 @@ if [[ -n "$existing" && "$existing" != "null" ]]; then
   exit 0
 fi
 
-# Subnet public đầu tiên (cho phép gắn IP công khai).
-SUBNET=$(oci network subnet list --compartment-id "$COMPARTMENT" --all \
-  --query 'data[?"prohibit-public-ip-on-vnic"==`false`].id | [0]' --raw-output)
+INGRESS_PORTS=(22 80 443)
+
+# Mở cổng 22/80/443 trong security list (giữ nguyên các rule sẵn có).
+open_ports() { # security-list-id
+  local sl=$1 rules
+  rules=$(oci network security-list get --security-list-id "$sl" --query 'data."ingress-security-rules"')
+  for port in "${INGRESS_PORTS[@]}"; do
+    # Rule TCP không giới hạn cổng (tcp-options rỗng) cũng tính là đã mở.
+    if ! jq -e --argjson p "$port" 'any(.[]; .protocol=="6" and .source=="0.0.0.0/0"
+        and ((."tcp-options" // .tcpOptions // {}) | (."destination-port-range" // .destinationPortRange // {min:0,max:65535})
+             | .min <= $p and .max >= $p))' <<<"$rules" >/dev/null; then
+      rules=$(jq --argjson p "$port" '. + [{"source":"0.0.0.0/0","protocol":"6","isStateless":false,
+        "tcpOptions":{"destinationPortRange":{"min":$p,"max":$p}}}]' <<<"$rules")
+    fi
+  done
+  # CLI trả về khóa dạng kebab-case, còn khi cập nhật cần camelCase.
+  rules=$(jq '[.[] | {source, protocol, isStateless:(."is-stateless" // .isStateless // false), sourceType:(."source-type" // .sourceType // "CIDR_BLOCK"),
+    tcpOptions:(."tcp-options" // .tcpOptions | if . then {destinationPortRange:(."destination-port-range" // .destinationPortRange | if . then {min, max} else null end)} else null end),
+    icmpOptions:(."icmp-options" // .icmpOptions)} | with_entries(select(.value != null))]' <<<"$rules")
+  oci network security-list update --security-list-id "$sl" --ingress-security-rules "$rules" --force >/dev/null
+}
+
+# Tìm subnet public ở mọi compartment.
+find_public_subnet() {
+  local c
+  for c in "$COMPARTMENT" $(oci iam compartment list --compartment-id "$COMPARTMENT" --compartment-id-in-subtree true --all \
+      --query 'data[?"lifecycle-state"==`ACTIVE`].id' --raw-output 2>/dev/null | jq -r '.[]?'); do
+    local id
+    id=$(oci network subnet list --compartment-id "$c" --all \
+      --query 'data[?"prohibit-public-ip-on-vnic"==`false` && "lifecycle-state"==`AVAILABLE`].id | [0]' --raw-output 2>/dev/null)
+    if [[ -n "$id" && "$id" != "null" ]]; then echo "$id"; return; fi
+  done
+}
+
+create_network() {
+  echo "Chưa có mạng public — đang tạo VCN, Internet Gateway và subnet public..." >&2
+  local vcn igw rt sl
+  vcn=$(oci network vcn create --compartment-id "$COMPARTMENT" --cidr-blocks '["10.0.0.0/16"]' \
+    --display-name seller-union-vcn --dns-label sellerunion --wait-for-state AVAILABLE)
+  rt=$(jq -r '.data."default-route-table-id"' <<<"$vcn")
+  sl=$(jq -r '.data."default-security-list-id"' <<<"$vcn")
+  vcn=$(jq -r '.data.id' <<<"$vcn")
+  igw=$(oci network internet-gateway create --compartment-id "$COMPARTMENT" --vcn-id "$vcn" --is-enabled true \
+    --display-name seller-union-igw --wait-for-state AVAILABLE --query 'data.id' --raw-output)
+  oci network route-table update --rt-id "$rt" --force \
+    --route-rules "[{\"destination\":\"0.0.0.0/0\",\"destinationType\":\"CIDR_BLOCK\",\"networkEntityId\":\"$igw\"}]" >/dev/null
+  oci network subnet create --compartment-id "$COMPARTMENT" --vcn-id "$vcn" --cidr-block 10.0.0.0/24 \
+    --display-name seller-union-public --dns-label public --prohibit-public-ip-on-vnic false \
+    --wait-for-state AVAILABLE --query 'data.id' --raw-output
+}
+
+SUBNET=$(find_public_subnet)
+[[ -n "$SUBNET" ]] || SUBNET=$(create_network)
 if [[ -z "$SUBNET" || "$SUBNET" == "null" ]]; then
-  echo "Chưa có subnet public. Tạo VCN: Networking → Virtual cloud networks → Start VCN Wizard → Create VCN with Internet Connectivity, rồi chạy lại."
+  echo "Không tạo được subnet public."
   exit 1
 fi
+echo "Dùng subnet: $SUBNET"
+for sl in $(oci network subnet get --subnet-id "$SUBNET" --query 'data."security-list-ids"' --raw-output | jq -r '.[]'); do
+  open_ports "$sl" && echo "Đã mở cổng ${INGRESS_PORTS[*]} (security list $sl)"
+done
 
 mapfile -t ADS < <(oci iam availability-domain list --compartment-id "$COMPARTMENT" --query 'data[].name' --raw-output | jq -r '.[]')
 
