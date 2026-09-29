@@ -141,18 +141,24 @@ $C start app
 
 ## Gắn tên miền sau
 
-Khi đã chạy tạm bằng IP và giờ có tên miền:
+Khi đã chạy tạm bằng IP và giờ có tên miền (ví dụ `banhang-dakenh.com`):
 
-1. Tạo bản ghi DNS `A @ -> <PUBLIC_IP>` (như bước 4), đợi `ping tenmien.vn` ra đúng IP.
-2. Sửa cấu hình:
+1. Tại trang quản lý DNS của tên miền, tạo 2 bản ghi:
+
+   | Loại | Tên | Giá trị |
+   |---|---|---|
+   | A | `@` | Public IP của máy chủ |
+   | CNAME | `www` | `banhang-dakenh.com` |
+
+2. Trên máy chủ:
 
    ```bash
    cd ~/seller-union
-   sed -i 's#^DOMAIN=.*#DOMAIN=tenmien.vn#; s#^SITE_URL=.*#SITE_URL=https://tenmien.vn#' .env
-   docker compose -f deploy/oracle/docker-compose.yml --env-file .env up -d
+   git pull
+   bash deploy/oracle/set-domain.sh banhang-dakenh.com
    ```
 
-3. Mở `https://tenmien.vn` — Caddy tự lấy chứng chỉ HTTPS trong khoảng một phút. Dữ liệu cũ giữ nguyên, nhưng cần đăng nhập lại.
+   Script kiểm tra DNS đã trỏ đúng chưa, cập nhật `.env`, khởi động lại và chờ Caddy lấy chứng chỉ HTTPS. `www.` tự chuyển về tên miền chính. Dữ liệu giữ nguyên; cần đăng nhập lại một lần.
 
 ## Gặp lỗi?
 

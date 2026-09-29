@@ -1,9 +1,9 @@
-{$DOMAIN} {
+# DOMAIN: tên miền chính (hoặc ":80" khi chạy tạm bằng IP).
+# WWW_DOMAIN: tùy chọn, vd www.tenmien.vn — được chuyển hướng về tên miền chính.
+{$DOMAIN} {$WWW_DOMAIN} {
+	@www header_regexp Host ^www\.
+	redir @www https://{$DOMAIN}{uri} permanent
+
 	encode zstd gzip
 	reverse_proxy app:3000
 }
-
-# Muốn www.tenmien.vn chuyển về tenmien.vn: tạo bản ghi DNS cho www rồi bỏ dấu # ở 3 dòng dưới.
-# www.{$DOMAIN} {
-# 	redir https://{$DOMAIN}{uri} permanent
-# }
