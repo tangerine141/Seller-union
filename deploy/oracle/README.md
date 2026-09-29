@@ -95,9 +95,11 @@ Xong! Mở:
 
 ```bash
 cd ~/seller-union
-nano .env        # điền SHOPEE_PARTNER_ID, SHOPEE_PARTNER_KEY, LAZADA_..., TIKTOK_...
-docker compose -f deploy/oracle/docker-compose.yml --env-file .env up -d
+git pull
+bash deploy/oracle/set-keys.sh
 ```
+
+Script hỏi lần lượt key của Shopee / Lazada / TikTok Shop (bỏ trống = giữ nguyên), lưu vào `.env` và khởi động lại app.
 
 Redirect URL khai báo trên trang nhà phát triển của sàn:
 - Shopee: `https://tenmien-cua-ban.vn/connect/shopee/callback`
