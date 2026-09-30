@@ -87,7 +87,7 @@ Mỗi sàn yêu cầu đăng ký tài khoản nhà phát triển và được du
 | TikTok Shop | partner.tiktokshop.com | `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` | `{SITE_URL}/connect/tiktok/callback` |
 | WooCommerce | WooCommerce → Cài đặt → Nâng cao → REST API (quyền Read) | — (nhập trong app) | — |
 
-Khi chưa cấu hình key, nút kết nối sàn đó sẽ báo “chưa cấu hình trên máy chủ”; shop demo và WooCommerce vẫn dùng được.
+Khi chưa cấu hình key chung, mỗi shop có thể **dùng key riêng**: tự tạo app người bán (Shopee Seller / Lazada Seller In‑house / TikTok Custom App) bằng tài khoản của chính mình rồi dán key trong **Thêm shop**. Key riêng được mã hóa và chỉ dùng cho shop của người đó. Hướng dẫn công khai cho chủ shop: `/huong-dan-ket-noi`.
 
 > Lưu ý: phần gọi API sàn được viết theo tài liệu công khai (Shopee v2, Lazada Open Platform, TikTok Shop API 202309) và đã có test cho thuật toán ký và ánh xạ dữ liệu, nhưng chưa chạy với tài khoản sàn thật. Khi có key, nên thử trên môi trường sandbox của từng sàn trước.
 

@@ -17,6 +17,8 @@ function list() {
     authType: c.authType,
     configured: c.isConfigured(),
     credentialFields: c.credentialFields || [],
+    // Trường để người dùng nhập key app riêng của họ (khi không dùng key chung của máy chủ).
+    appFields: c.appFields || [],
   }));
 }
 

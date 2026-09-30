@@ -41,8 +41,20 @@ function cfg() {
   return config.lazada;
 }
 
-async function call(host, apiPath, params = {}, accessToken) {
-  const { appKey, appSecret } = cfg();
+// app: key riêng của người dùng ({ appKey, appSecret }); không có thì dùng key chung trong .env.
+function appOf(app) {
+  return app || cfg();
+}
+
+function normalizeApp(input = {}) {
+  const appKey = String(input.appKey || '').trim();
+  const appSecret = String(input.appSecret || '').trim();
+  if (!/^\d+$/.test(appKey) || !appSecret) throw new ConnectorError('App Key phải là số và cần có App Secret');
+  return { appKey, appSecret };
+}
+
+async function call(app, host, apiPath, params = {}, accessToken) {
+  const { appKey, appSecret } = appOf(app);
   const all = { app_key: appKey, timestamp: String(Date.now()), sign_method: 'sha256', ...params };
   if (accessToken) all.access_token = accessToken;
   all.sign = sign(appSecret, apiPath, all);
@@ -51,8 +63,9 @@ async function call(host, apiPath, params = {}, accessToken) {
   return data;
 }
 
-function tokenFrom(data) {
+function tokenFrom(data, app) {
   return {
+    ...(app ? { app } : {}),
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     expiresAt: Date.now() + (data.expires_in || 0) * 1000,
@@ -63,15 +76,15 @@ function tokenFrom(data) {
 async function ensureToken(ctx) {
   const c = ctx.credentials;
   if (c.expiresAt - Date.now() > 10 * 60 * 1000) return c;
-  const data = await call(`${cfg().authHost}/rest`, '/auth/token/refresh', { refresh_token: c.refreshToken });
-  const next = { ...tokenFrom(data), sellerId: c.sellerId };
+  const data = await call(c.app, `${cfg().authHost}/rest`, '/auth/token/refresh', { refresh_token: c.refreshToken });
+  const next = { ...tokenFrom(data, c.app), sellerId: c.sellerId };
   await ctx.saveCredentials(next);
   return next;
 }
 
 async function shopCall(ctx, apiPath, params) {
   const c = await ensureToken(ctx);
-  return call(cfg().apiHost, apiPath, params, c.accessToken);
+  return call(c.app, cfg().apiHost, apiPath, params, c.accessToken);
 }
 
 // "2024-01-15 10:23:45 +0700" -> epoch ms
@@ -121,30 +134,36 @@ module.exports = {
   sign,
   parseDate,
   mapOrder,
+  normalizeApp,
   STATUS_MAP,
+  appFields: [
+    { key: 'appKey', label: 'App Key', type: 'text', placeholder: '123456' },
+    { key: 'appSecret', label: 'App Secret', type: 'password', placeholder: '' },
+  ],
 
-  isConfigured() {
-    return Boolean(cfg().appKey && cfg().appSecret);
+  isConfigured(app) {
+    const a = appOf(app);
+    return Boolean(a.appKey && a.appSecret);
   },
 
-  getAuthUrl({ redirectUri, state }) {
+  getAuthUrl({ redirectUri, state, app }) {
     const qs = new URLSearchParams({
       response_type: 'code',
       force_auth: 'true',
       redirect_uri: redirectUri,
-      client_id: cfg().appKey,
+      client_id: appOf(app).appKey,
       state,
     });
     return `${cfg().authHost}/oauth/authorize?${qs}`;
   },
 
-  async handleCallback({ query }) {
+  async handleCallback({ query, app }) {
     if (!query.code) throw new ConnectorError('Lazada không trả về code');
-    const data = await call(`${cfg().authHost}/rest`, '/auth/token/create', { code: query.code });
-    const credentials = tokenFrom(data);
+    const data = await call(app, `${cfg().authHost}/rest`, '/auth/token/create', { code: query.code });
+    const credentials = tokenFrom(data, app);
     let name = `Lazada ${credentials.sellerId || ''}`.trim();
     try {
-      const info = await call(cfg().apiHost, '/seller/get', {}, credentials.accessToken);
+      const info = await call(app, cfg().apiHost, '/seller/get', {}, credentials.accessToken);
       name = info.data?.name || name;
     } catch {
       // Giữ tên mặc định.

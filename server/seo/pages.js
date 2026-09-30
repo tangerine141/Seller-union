@@ -83,6 +83,7 @@ ${jsonLd.map((j) => `<script type="application/ld+json">${JSON.stringify(j).repl
     <nav aria-label="Chính">
       <a href="/#tinh-nang">Tính năng</a>
       <a href="/#san-ho-tro">Sàn hỗ trợ</a>
+      <a href="/huong-dan-ket-noi">Hướng dẫn</a>
       <a href="/#hoi-dap">Hỏi đáp</a>
     </nav>
     <a class="btn btn-primary" href="/app/">Vào ứng dụng</a>
@@ -103,6 +104,7 @@ ${body}
     </div>
     <div>
       <h3>Ứng dụng</h3>
+      <a href="/huong-dan-ket-noi">Hướng dẫn kết nối</a>
       <a href="/app/#/register">Đăng ký</a>
       <a href="/app/#/login">Đăng nhập</a>
     </div>
@@ -276,6 +278,92 @@ function platformPage(p) {
   });
 }
 
+
+// Hướng dẫn từng bước để chủ shop tự tạo app trên sàn và kết nối bằng key riêng.
+const GUIDES = [
+  {
+    id: 'shopee',
+    name: 'Shopee',
+    portal: 'https://open.shopee.com',
+    keys: 'Partner ID, Partner Key',
+    steps: [
+      'Vào <a href="https://open.shopee.com" rel="nofollow noopener" target="_blank">open.shopee.com</a>, đăng nhập bằng <b>tài khoản người bán Shopee</b> của bạn.',
+      'Khi được hỏi loại tài khoản, chọn <b>Shopee Seller</b>. Chuẩn bị: tên đăng nhập Shopee, số CCCD và ảnh chụp CCCD. Gửi hồ sơ và chờ Shopee duyệt.',
+      'Được duyệt thì vào <b>Console → App List → Create App</b>, chọn loại app dùng cho shop của mình.',
+      'Trong cài đặt app: khai báo <b>Redirect URL</b> (hoặc domain) là địa chỉ ở ô bên dưới, bật quyền <b>Order</b> và <b>Product</b>.',
+      'Sao chép <b>Partner ID</b> và <b>Partner Key</b>. Lúc đầu Shopee thường cấp key <b>Test</b>; sau khi app được duyệt Go Live mới có key <b>Live</b>.',
+    ],
+  },
+  {
+    id: 'lazada',
+    name: 'Lazada',
+    portal: 'https://open.lazada.com',
+    keys: 'App Key, App Secret',
+    steps: [
+      'Vào <a href="https://open.lazada.com" rel="nofollow noopener" target="_blank">open.lazada.com</a>, đăng ký tài khoản và đăng ký làm <b>Developer</b>.',
+      'Vào <b>App Console → Create</b>, tìm loại <b>Seller In-house APP</b> rồi bấm <b>Create App</b>.',
+      'Điền tên app và <b>Callback URL</b> đúng như ô bên dưới (sai một ký tự sẽ báo lỗi "Redirect uri does not match").',
+      'Sau khi tạo: bấm <b>Manage</b>, kéo xuống <b>Advance information</b>, sao chép <b>App Key</b> và <b>App Secret</b>.',
+    ],
+  },
+  {
+    id: 'tiktok',
+    name: 'TikTok Shop',
+    portal: 'https://partner.tiktokshop.com',
+    keys: 'App Key, App Secret, Service ID',
+    steps: [
+      'Vào <a href="https://partner.tiktokshop.com" rel="nofollow noopener" target="_blank">partner.tiktokshop.com</a>, đăng ký tài khoản đối tác (chọn khu vực Việt Nam / Đông Nam Á).',
+      'Menu trái: <b>App &amp; Service → Create</b>, chọn <b>Custom App</b>.',
+      'Điền tên app, thị trường <b>Vietnam</b>, <b>Redirect URL</b> như ô bên dưới; bật quyền (API scopes) <b>Order</b> và <b>Product</b>.',
+      'Trong trang chi tiết app, sao chép <b>App Key</b>, <b>App Secret</b> và <b>Service ID</b>.',
+    ],
+  },
+];
+
+function guidePage() {
+  const title = `Hướng dẫn kết nối shop Shopee, Lazada, TikTok Shop | ${config.siteName}`;
+  const description = `Hướng dẫn từng bước tạo app người bán trên Shopee, Lazada, TikTok Shop và kết nối shop với ${config.siteName} để đồng bộ đơn hàng, thống kê và in phiếu.`;
+  const body = `
+<section class="hero small-hero">
+  <div class="wrap narrow">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="/">Trang chủ</a> › <span>Hướng dẫn kết nối</span></nav>
+    <h1>Hướng dẫn <span class="grad">kết nối shop</span></h1>
+    <p class="lead">Mỗi shop tự tạo một "app người bán" miễn phí trên sàn bằng tài khoản của chính mình, rồi dán key vào ${esc(config.siteName)}. Key chỉ dùng cho shop của bạn và được mã hóa khi lưu.</p>
+    <p>Chuyển nhanh: ${GUIDES.map((g) => `<a href="#${g.id}">${esc(g.name)}</a>`).join(' · ')}</p>
+  </div>
+</section>
+<section class="section" style="padding-top:24px">
+  <div class="wrap narrow">
+    ${GUIDES.map((g) => `
+    <h2 id="${g.id}">${esc(g.name)}</h2>
+    <p class="muted">Bạn cần lấy: <b>${esc(g.keys)}</b></p>
+    <ol class="steps">${g.steps.map((x, i) => `<li><b>Bước ${i + 1}</b><span>${x}</span></li>`).join('')}</ol>
+    <p>Redirect / Callback URL:</p>
+    <pre class="card" style="overflow-x:auto;padding:12px;margin:0 0 8px">${esc(config.siteUrl)}/connect/${g.id}/callback</pre>
+    <p><b>Cuối cùng:</b> đăng nhập <a href="/app/#/shops?add=1">${esc(config.siteName)}</a> → <b>Shop → Thêm shop → ${esc(g.name)}</b> → dán key → <b>Lưu key &amp; kết nối</b> → đăng nhập ${esc(g.name)} và bấm đồng ý.</p>
+    `).join('<hr style="border:0;border-top:1px solid var(--border);margin:40px 0">')}
+    <h2>Câu hỏi thường gặp</h2>
+    <details class="faq"><summary>Có mất phí đăng ký không?</summary><p>Tạo tài khoản nhà phát triển và app người bán trên các sàn đều miễn phí. Thời gian duyệt tùy sàn, từ vài giờ đến vài ngày.</p></details>
+    <details class="faq"><summary>Có an toàn không?</summary><p>App chỉ có quyền đọc đơn hàng và sản phẩm của shop bạn. Key được mã hóa AES-256 khi lưu. Bạn có thể xóa key hoặc thu hồi ủy quyền trên trang của sàn bất cứ lúc nào.</p></details>
+    <details class="faq"><summary>Báo lỗi "Redirect uri does not match"?</summary><p>Callback URL khai báo trên sàn phải giống hệt địa chỉ ở trên, kể cả https và dấu gạch chéo.</p></details>
+  </div>
+</section>`;
+  return layout({
+    path: '/huong-dan-ket-noi',
+    title,
+    description,
+    body,
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'HowTo',
+        name: `Kết nối shop với ${config.siteName}`,
+        step: GUIDES.map((g) => ({ '@type': 'HowToSection', name: g.name, itemListElement: g.steps.map((x) => ({ '@type': 'HowToStep', text: x.replace(/<[^>]+>/g, '') })) })),
+      },
+    ],
+  });
+}
+
 function notFound() {
   return layout({
     path: '/404',
@@ -288,6 +376,7 @@ function notFound() {
 function register(app) {
   const html = (fn) => (req, res) => res.type('html').set('cache-control', 'public, max-age=300').send(fn(req));
   app.get('/', html(home));
+  app.get('/huong-dan-ket-noi', html(guidePage));
   app.get('/ket-noi/:slug', (req, res, next) => {
     const p = PLATFORMS[req.params.slug];
     if (!p) return next();
@@ -297,7 +386,7 @@ function register(app) {
     res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /app/\nDisallow: /api/\nDisallow: /connect/\n\nSitemap: ${config.siteUrl}/sitemap.xml\n`)
   );
   app.get('/sitemap.xml', (req, res) => {
-    const urls = ['/', ...Object.values(PLATFORMS).map((p) => `/ket-noi/${p.slug}`)];
+    const urls = ['/', '/huong-dan-ket-noi', ...Object.values(PLATFORMS).map((p) => `/ket-noi/${p.slug}`)];
     const today = new Date().toISOString().slice(0, 10);
     res.type('application/xml').send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
@@ -307,4 +396,4 @@ function register(app) {
   });
 }
 
-module.exports = { register, notFound, home, platformPage, PLATFORMS };
+module.exports = { register, notFound, home, platformPage, guidePage, PLATFORMS };

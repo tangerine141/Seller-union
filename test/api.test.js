@@ -39,6 +39,10 @@ test('trang SEO, sitemap, robots', async () => {
   assert.match(home.body, /application\/ld\+json/);
   assert.match(home.body, /rel="canonical"/);
   assert.equal((await c('/ket-noi/tiktok-shop')).status, 200);
+  const guide = await c('/huong-dan-ket-noi');
+  assert.equal(guide.status, 200);
+  assert.match(guide.body, /connect\/lazada\/callback/);
+  assert.match(guide.body, /"HowTo"/);
   assert.equal((await c('/ket-noi/khong-co')).status, 404);
   assert.match((await c('/sitemap.xml')).body, /ket-noi\/lazada/);
   assert.match((await c('/robots.txt')).body, /Disallow: \/app\//);
@@ -115,8 +119,53 @@ test('đăng nhập sai và OAuth thiếu cấu hình/state giả', async () => 
   assert.equal((await c('/api/auth/login', { method: 'POST', body: { email: 'o@y.vn', password: 'matkhau123' } })).status, 200);
   const auth = await c('/api/connect/shopee/authorize');
   assert.equal(auth.status, 400);
-  assert.match(auth.body.error, /chưa cấu hình/);
+  assert.match(auth.body.error, /Chưa có key/);
   const cb = await c('/connect/shopee/callback?code=x&shop_id=1&state=gia-mao');
   assert.equal(cb.status, 302);
   assert.match(cb.headers.get('location'), /error=/);
+});
+
+test('shop dùng key riêng: lưu key, ủy quyền Lazada, nhận callback, đồng bộ bằng key của chính shop', async (t) => {
+  const c = client();
+  await c('/api/auth/register', { method: 'POST', body: { email: 'own@y.vn', password: 'matkhau123' } });
+
+  assert.equal((await c('/api/connect/lazada/app', { method: 'PUT', body: { appKey: 'abc', appSecret: 's' } })).status, 400);
+  assert.equal((await c('/api/connect/lazada/app', { method: 'PUT', body: { appKey: '123456', appSecret: 'bi-mat' } })).status, 200);
+  assert.deepEqual(Object.keys((await c('/api/connect/apps')).body.apps), ['lazada']);
+
+  const auth = await c('/api/connect/lazada/authorize?own=1');
+  assert.equal(auth.status, 200);
+  const url = new URL(auth.body.url);
+  assert.equal(url.searchParams.get('client_id'), '123456');
+  assert.ok(!auth.body.url.includes('bi-mat'), 'không lộ App Secret ra URL');
+  const state = url.searchParams.get('state');
+
+  // Giả lập API Lazada: kiểm tra request được ký bằng key riêng của shop.
+  const realFetch = global.fetch;
+  const seenKeys = new Set();
+  t.after(() => { global.fetch = realFetch; });
+  global.fetch = async (input, init) => {
+    const u = new URL(String(input));
+    if (u.hostname === '127.0.0.1') return realFetch(input, init);
+    seenKeys.add(u.searchParams.get('app_key'));
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+    if (u.pathname.endsWith('/auth/token/create')) return json({ code: '0', access_token: 'tok', refresh_token: 'rt', expires_in: 3600, country_user_info: [{ seller_id: 'S1' }] });
+    if (u.pathname.endsWith('/seller/get')) return json({ code: '0', data: { name: 'Shop Lazada Của Tôi' } });
+    if (u.pathname.endsWith('/orders/get')) return json({ code: '0', data: { orders: [{ order_id: 77, statuses: ['pending'], price: '100000', created_at: '2026-09-01 10:00:00 +0700' }] } });
+    if (u.pathname.endsWith('/orders/items/get')) return json({ code: '0', data: [{ order_id: 77, order_items: [{ sku: 'A', name: 'Áo', paid_price: 100000 }] }] });
+    if (u.pathname.endsWith('/products/get')) return json({ code: '0', data: { products: [] } });
+    return json({ code: 'X', message: 'không mong đợi ' + u.pathname });
+  };
+
+  const cb = await c(`/connect/lazada/callback?code=abc&state=${encodeURIComponent(state)}`);
+  assert.equal(cb.status, 302);
+  assert.match(cb.headers.get('location'), /connected=/);
+  const shop = (await c('/api/shops')).body.shops[0];
+  assert.equal(shop.name, 'Shop Lazada Của Tôi');
+  assert.equal((await c(`/api/shops/${shop.id}/sync`, { method: 'POST' })).status, 200);
+  assert.equal((await c('/api/orders')).body.total, 1);
+  assert.deepEqual([...seenKeys], ['123456']);
+
+  assert.equal((await c('/api/connect/lazada/app', { method: 'DELETE' })).status, 200);
+  assert.equal((await c('/api/connect/lazada/authorize?own=1')).status, 400);
 });

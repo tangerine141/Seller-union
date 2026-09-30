@@ -33,6 +33,15 @@ CREATE TABLE IF NOT EXISTS shops (
   UNIQUE (user_id, platform, external_id)
 );
 
+-- Key app riêng của từng người dùng trên mỗi sàn (mã hóa), dùng thay cho key chung trong .env.
+CREATE TABLE IF NOT EXISTS user_apps (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL,
+  credentials TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, platform)
+);
+
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   shop_id INTEGER NOT NULL REFERENCES shops(id) ON DELETE CASCADE,

@@ -25,12 +25,24 @@ function sign(partnerKey, parts) {
   return crypto.createHmac('sha256', partnerKey).update(parts.join('')).digest('hex');
 }
 
-function cfg() {
-  return config.shopee;
+const TEST_HOST = 'https://partner.test-stable.shopeemobile.com';
+
+// app: key riêng của người dùng ({ partnerId, partnerKey, host }); không có thì dùng key chung trong .env.
+function appOf(app) {
+  return app || config.shopee;
 }
 
-function buildUrl(path, { accessToken, shopId, params = {} } = {}) {
-  const { partnerId, partnerKey, host } = cfg();
+// Chuẩn hóa key người dùng nhập ở form "Dùng key riêng".
+function normalizeApp(input = {}) {
+  const partnerId = String(input.partnerId || '').trim();
+  const partnerKey = String(input.partnerKey || '').trim();
+  if (!/^\d+$/.test(partnerId) || !partnerKey) throw new ConnectorError('Partner ID phải là số và cần có Partner Key');
+  const test = input.test === true || input.test === 'on' || input.test === 'true';
+  return { partnerId, partnerKey, host: test ? TEST_HOST : 'https://partner.shopeemobile.com' };
+}
+
+function buildUrl(app, path, { accessToken, shopId, params = {} } = {}) {
+  const { partnerId, partnerKey, host } = appOf(app);
   const timestamp = Math.floor(Date.now() / 1000);
   const base = [partnerId, path, timestamp];
   if (accessToken) base.push(accessToken, shopId);
@@ -44,14 +56,15 @@ function buildUrl(path, { accessToken, shopId, params = {} } = {}) {
   return `${host}${path}?${qs}`;
 }
 
-async function call(path, opts = {}) {
-  const data = await fetchJson(buildUrl(path, opts), { method: opts.body ? 'POST' : 'GET', body: opts.body });
+async function call(app, path, opts = {}) {
+  const data = await fetchJson(buildUrl(app, path, opts), { method: opts.body ? 'POST' : 'GET', body: opts.body });
   if (data.error) throw new ConnectorError(`Shopee: ${data.message || data.error}`, { code: data.error });
   return data;
 }
 
-function tokenFrom(data, shopId) {
+function tokenFrom(data, shopId, app) {
   return {
+    ...(app ? { app } : {}),
     shopId: Number(shopId),
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
@@ -62,17 +75,16 @@ function tokenFrom(data, shopId) {
 async function ensureToken(ctx) {
   const c = ctx.credentials;
   if (c.expiresAt - Date.now() > 5 * 60 * 1000) return c;
-  const { partnerId } = cfg();
-  const data = await call('/api/v2/auth/access_token/get', {
-    body: { refresh_token: c.refreshToken, shop_id: c.shopId, partner_id: Number(partnerId) },
+  const data = await call(c.app, '/api/v2/auth/access_token/get', {
+    body: { refresh_token: c.refreshToken, shop_id: c.shopId, partner_id: Number(appOf(c.app).partnerId) },
   });
-  const next = tokenFrom(data, c.shopId);
+  const next = tokenFrom(data, c.shopId, c.app);
   await ctx.saveCredentials(next);
   return next;
 }
 
 function shopCall(ctx, path, params) {
-  return ensureToken(ctx).then((c) => call(path, { accessToken: c.accessToken, shopId: c.shopId, params }));
+  return ensureToken(ctx).then((c) => call(c.app, path, { accessToken: c.accessToken, shopId: c.shopId, params }));
 }
 
 function mapOrder(o) {
@@ -109,27 +121,34 @@ module.exports = {
   authType: 'oauth',
   sign,
   mapOrder,
+  normalizeApp,
   STATUS_MAP,
+  appFields: [
+    { key: 'partnerId', label: 'Partner ID', type: 'text', placeholder: '2001234' },
+    { key: 'partnerKey', label: 'Partner Key', type: 'password', placeholder: 'shpk...' },
+    { key: 'test', label: 'Đây là key môi trường Test (sandbox)', type: 'checkbox' },
+  ],
 
-  isConfigured() {
-    return Boolean(cfg().partnerId && cfg().partnerKey);
+  isConfigured(app) {
+    const a = appOf(app);
+    return Boolean(a.partnerId && a.partnerKey);
   },
 
-  getAuthUrl({ redirectUri, state }) {
+  getAuthUrl({ redirectUri, state, app }) {
     const redirect = `${redirectUri}?state=${encodeURIComponent(state)}`;
-    return buildUrl('/api/v2/shop/auth_partner', { params: { redirect } });
+    return buildUrl(app, '/api/v2/shop/auth_partner', { params: { redirect } });
   },
 
-  async handleCallback({ query }) {
+  async handleCallback({ query, app }) {
     const { code, shop_id: shopId } = query;
     if (!code || !shopId) throw new ConnectorError('Shopee không trả về code/shop_id');
-    const data = await call('/api/v2/auth/token/get', {
-      body: { code, shop_id: Number(shopId), partner_id: Number(cfg().partnerId) },
+    const data = await call(app, '/api/v2/auth/token/get', {
+      body: { code, shop_id: Number(shopId), partner_id: Number(appOf(app).partnerId) },
     });
-    const credentials = tokenFrom(data, shopId);
+    const credentials = tokenFrom(data, shopId, app);
     let name = `Shopee ${shopId}`;
     try {
-      const info = await call('/api/v2/shop/get_shop_info', { accessToken: credentials.accessToken, shopId });
+      const info = await call(app, '/api/v2/shop/get_shop_info', { accessToken: credentials.accessToken, shopId });
       name = info.shop_name || name;
     } catch {
       // Không lấy được tên shop thì dùng tên mặc định.

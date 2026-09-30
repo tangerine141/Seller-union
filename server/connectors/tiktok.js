@@ -34,8 +34,24 @@ function cfg() {
   return config.tiktok;
 }
 
-async function call(path, { params = {}, body, accessToken } = {}) {
-  const { appKey, appSecret, apiHost } = cfg();
+// app: key riêng của người dùng ({ appKey, appSecret, serviceId }); không có thì dùng key chung trong .env.
+function appOf(app) {
+  return app || cfg();
+}
+
+function normalizeApp(input = {}) {
+  const app = {
+    appKey: String(input.appKey || '').trim(),
+    appSecret: String(input.appSecret || '').trim(),
+    serviceId: String(input.serviceId || '').trim(),
+  };
+  if (!app.appKey || !app.appSecret || !app.serviceId) throw new ConnectorError('Cần đủ App Key, App Secret và Service ID');
+  return app;
+}
+
+async function call(app, path, { params = {}, body, accessToken } = {}) {
+  const { appKey, appSecret } = appOf(app);
+  const { apiHost } = cfg();
   const all = { app_key: appKey, timestamp: String(Math.floor(Date.now() / 1000)), ...params };
   const bodyStr = body === undefined ? '' : JSON.stringify(body);
   all.sign = sign(appSecret, path, all, bodyStr);
@@ -48,8 +64,9 @@ async function call(path, { params = {}, body, accessToken } = {}) {
   return data.data || {};
 }
 
-async function tokenCall(path, params) {
-  const { appKey, appSecret, authHost } = cfg();
+async function tokenCall(app, path, params) {
+  const { appKey, appSecret } = appOf(app);
+  const { authHost } = cfg();
   const data = await fetchJson(`${authHost}${path}?${new URLSearchParams({ app_key: appKey, app_secret: appSecret, ...params })}`);
   if (data.code !== 0) throw new ConnectorError(`TikTok Shop: ${data.message || data.code}`, { code: data.code });
   const d = data.data;
@@ -64,7 +81,7 @@ async function tokenCall(path, params) {
 async function ensureToken(ctx) {
   const c = ctx.credentials;
   if (c.expiresAt - Date.now() > 10 * 60 * 1000) return c;
-  const t = await tokenCall('/api/v2/token/refresh', { refresh_token: c.refreshToken, grant_type: 'refresh_token' });
+  const t = await tokenCall(c.app, '/api/v2/token/refresh', { refresh_token: c.refreshToken, grant_type: 'refresh_token' });
   const next = { ...c, ...t };
   await ctx.saveCredentials(next);
   return next;
@@ -72,7 +89,7 @@ async function ensureToken(ctx) {
 
 async function shopCall(ctx, path, params, body) {
   const c = await ensureToken(ctx);
-  return call(path, { params: { shop_cipher: c.shopCipher, ...params }, body, accessToken: c.accessToken });
+  return call(c.app, path, { params: { shop_cipher: c.shopCipher, ...params }, body, accessToken: c.accessToken });
 }
 
 function mapOrder(o) {
@@ -113,27 +130,34 @@ module.exports = {
   authType: 'oauth',
   sign,
   mapOrder,
+  normalizeApp,
   STATUS_MAP,
+  appFields: [
+    { key: 'appKey', label: 'App Key', type: 'text', placeholder: '' },
+    { key: 'appSecret', label: 'App Secret', type: 'password', placeholder: '' },
+    { key: 'serviceId', label: 'Service ID', type: 'text', placeholder: '' },
+  ],
 
-  isConfigured() {
-    return Boolean(cfg().appKey && cfg().appSecret && cfg().serviceId);
+  isConfigured(app) {
+    const a = appOf(app);
+    return Boolean(a.appKey && a.appSecret && a.serviceId);
   },
 
   // Redirect URL được cấu hình trong Partner Center, không truyền qua tham số.
-  getAuthUrl({ state }) {
-    return `${cfg().authorizeUrl}?${new URLSearchParams({ service_id: cfg().serviceId, state })}`;
+  getAuthUrl({ state, app }) {
+    return `${cfg().authorizeUrl}?${new URLSearchParams({ service_id: appOf(app).serviceId, state })}`;
   },
 
-  async handleCallback({ query }) {
+  async handleCallback({ query, app }) {
     if (!query.code) throw new ConnectorError('TikTok Shop không trả về code');
-    const token = await tokenCall('/api/v2/token/get', { auth_code: query.code, grant_type: 'authorized_code' });
-    const data = await call('/authorization/202309/shops', { accessToken: token.accessToken });
+    const token = await tokenCall(app, '/api/v2/token/get', { auth_code: query.code, grant_type: 'authorized_code' });
+    const data = await call(app, '/authorization/202309/shops', { accessToken: token.accessToken });
     const shop = (data.shops || [])[0];
     if (!shop) throw new ConnectorError('Tài khoản TikTok Shop chưa có shop nào được ủy quyền');
     return {
       externalId: String(shop.id),
       name: shop.name || token.sellerName || 'TikTok Shop',
-      credentials: { ...token, shopId: String(shop.id), shopCipher: shop.cipher },
+      credentials: { ...(app ? { app } : {}), ...token, shopId: String(shop.id), shopCipher: shop.cipher },
     };
   },
 

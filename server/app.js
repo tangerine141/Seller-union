@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const config = require('./config');
 const connectors = require('./connectors');
-const { hashPassword, verifyPassword, encryptJson, signToken, verifyToken } = require('./crypto');
+const { hashPassword, verifyPassword, encryptJson, decryptJson, signToken, verifyToken } = require('./crypto');
 const { syncShop, syncAll } = require('./services/sync');
 const { listOrders, getStats } = require('./services/stats');
 const { toCsv } = require('./services/csv');
@@ -226,14 +226,51 @@ function createApp(db) {
   // OAuth: Shopee, Lazada, TikTok Shop.
   const callbackUrl = (platform) => `${config.siteUrl}/connect/${platform}/callback`;
 
-  app.get('/api/connect/:platform/authorize', requireAuth, (req, res) => {
+  function loadUserApp(userId, platform) {
+    const row = db.prepare('SELECT credentials FROM user_apps WHERE user_id = ? AND platform = ?').get(userId, platform);
+    return row ? decryptJson(config.appSecret, row.credentials) : null;
+  }
+
+  function oauthConnector(req) {
     const connector = connectors.get(req.params.platform);
     if (!connector || connector.authType !== 'oauth') throw new HttpError(404, 'Sàn không hỗ trợ');
-    if (!connector.isConfigured()) {
-      throw new HttpError(400, `Máy chủ chưa cấu hình App key của ${connector.name}. Xem hướng dẫn trong README.`);
+    return connector;
+  }
+
+  // Key app riêng của người dùng: xem (đã che), lưu, xóa.
+  app.get('/api/connect/apps', requireAuth, (req, res) => {
+    const rows = db.prepare('SELECT platform, updated_at FROM user_apps WHERE user_id = ?').all(req.user.id);
+    res.json({ apps: Object.fromEntries(rows.map((r) => [r.platform, { updatedAt: r.updated_at }])) });
+  });
+
+  app.put('/api/connect/:platform/app', requireAuth, (req, res) => {
+    const connector = oauthConnector(req);
+    let appCreds;
+    try {
+      appCreds = connector.normalizeApp(req.body);
+    } catch (err) {
+      throw new HttpError(400, err.message);
     }
-    const state = signToken(config.appSecret, { uid: req.user.id, p: connector.id }, 15 * 60);
-    res.json({ url: connector.getAuthUrl({ redirectUri: callbackUrl(connector.id), state }) });
+    db.prepare(`INSERT INTO user_apps (user_id, platform, credentials, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT (user_id, platform) DO UPDATE SET credentials = excluded.credentials, updated_at = excluded.updated_at`)
+      .run(req.user.id, connector.id, encryptJson(config.appSecret, appCreds), Date.now());
+    res.json({ ok: true });
+  });
+
+  app.delete('/api/connect/:platform/app', requireAuth, (req, res) => {
+    const connector = oauthConnector(req);
+    db.prepare('DELETE FROM user_apps WHERE user_id = ? AND platform = ?').run(req.user.id, connector.id);
+    res.json({ ok: true });
+  });
+
+  // own=1: dùng key riêng của người dùng; mặc định dùng key chung, nếu máy chủ không có thì tự dùng key riêng.
+  app.get('/api/connect/:platform/authorize', requireAuth, (req, res) => {
+    const connector = oauthConnector(req);
+    const own = req.query.own === '1' || !connector.isConfigured();
+    const appCreds = own ? loadUserApp(req.user.id, connector.id) : undefined;
+    if (own && !appCreds) throw new HttpError(400, `Chưa có key ${connector.name}. Hãy nhập Partner/App key của shop bạn trước.`);
+    const state = signToken(config.appSecret, { uid: req.user.id, p: connector.id, own }, 15 * 60);
+    res.json({ url: connector.getAuthUrl({ redirectUri: callbackUrl(connector.id), state, app: appCreds || undefined }) });
   });
 
   app.get('/connect/:platform/callback', wrap(async (req, res) => {
@@ -243,7 +280,9 @@ function createApp(db) {
     if (!connector || connector.authType !== 'oauth') return fail('Sàn không hỗ trợ');
     if (!state || state.p !== connector.id) return fail('Phiên kết nối hết hạn, vui lòng thử lại');
     try {
-      const result = await connector.handleCallback({ query: req.query, redirectUri: callbackUrl(connector.id) });
+      const appCreds = state.own ? loadUserApp(state.uid, connector.id) : undefined;
+      if (state.own && !appCreds) return fail('Không tìm thấy key riêng, vui lòng nhập lại');
+      const result = await connector.handleCallback({ query: req.query, redirectUri: callbackUrl(connector.id), app: appCreds || undefined });
       const id = saveShop(state.uid, connector.id, result);
       syncInBackground(id);
       res.redirect(`/app/#/shops?connected=${encodeURIComponent(result.name)}`);

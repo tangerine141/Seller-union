@@ -61,7 +61,7 @@ function toast(msg, ms = 2600) {
   toast.t = setTimeout(() => el.classList.remove('show'), ms);
 }
 
-async function api(path, { method = 'GET', body } = {}) {
+async function api(path, { method = 'GET', body, noRedirect = false } = {}) {
   const res = await fetch(path, {
     method,
     credentials: 'same-origin',
@@ -69,7 +69,7 @@ async function api(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 401 && !path.startsWith('/api/auth')) {
+  if (res.status === 401 && !noRedirect && !path.startsWith('/api/auth')) {
     state.user = null;
     location.hash = '#/login';
     throw new Error(data.error || 'Vui lòng đăng nhập');
@@ -522,18 +522,103 @@ async function shopsView(params) {
   if (params.get('add')) addShopModal();
 }
 
+// Tóm tắt cách tạo app trên từng sàn (bản đầy đủ: /huong-dan-ket-noi).
+const APP_GUIDE = {
+  shopee: {
+    portal: 'https://open.shopee.com',
+    steps: [
+      'Vào <b>open.shopee.com</b>, đăng nhập bằng tài khoản người bán, chọn loại tài khoản <b>Shopee Seller</b> (cần CCCD).',
+      'Khi được duyệt: <b>Console → App List → Create App</b>.',
+      'Trong cài đặt app, khai báo <b>Redirect URL</b> bên dưới và bật quyền <b>Order</b>, <b>Product</b>.',
+      'Sao chép <b>Partner ID</b> và <b>Partner Key</b> dán vào đây.',
+    ],
+  },
+  lazada: {
+    portal: 'https://open.lazada.com',
+    steps: [
+      'Vào <b>open.lazada.com</b>, đăng ký làm Developer.',
+      '<b>App Console → Create</b>, chọn loại <b>Seller In-house APP</b>.',
+      'Ô <b>Callback URL</b> dán đúng địa chỉ bên dưới.',
+      'Vào <b>Manage → Advance information</b>, sao chép <b>App Key</b> và <b>App Secret</b>.',
+    ],
+  },
+  tiktok: {
+    portal: 'https://partner.tiktokshop.com',
+    steps: [
+      'Vào <b>partner.tiktokshop.com</b>, đăng ký tài khoản đối tác.',
+      '<b>App & Service → Create</b>, chọn <b>Custom App</b>, thị trường Việt Nam.',
+      'Ô <b>Redirect URL</b> dán địa chỉ bên dưới, bật quyền <b>Order</b> và <b>Product</b>.',
+      'Sao chép <b>App Key</b>, <b>App Secret</b>, <b>Service ID</b> dán vào đây.',
+    ],
+  },
+};
+
+async function oauthPanel(p, box, m) {
+  const { apps } = await api('/api/connect/apps');
+  const hasOwn = Boolean(apps[p.id]);
+  const redirectUrl = `${location.origin}/connect/${p.id}/callback`;
+  const guide = APP_GUIDE[p.id];
+  const go = async (own) => {
+    const { url } = await api(`/api/connect/${p.id}/authorize${own ? '?own=1' : ''}`);
+    location.href = url;
+  };
+  box.innerHTML = `<div style="margin-top:16px">
+    ${p.configured ? `<button class="btn btn-primary btn-block" id="useShared">Kết nối ${esc(p.name)}</button>
+      <p class="muted small center" style="margin:8px 0 0">hoặc dùng key riêng của shop bạn:</p>` : ''}
+    <h2 style="margin-top:12px">Kết nối bằng key riêng</h2>
+    ${hasOwn ? `<p class="small">✅ Bạn đã lưu key ${esc(p.name)}. <button class="btn btn-sm btn-primary" id="useOwn">Kết nối ngay</button>
+      <button class="btn btn-sm" id="editOwn">Nhập lại key</button> <button class="btn btn-sm btn-danger" id="delOwn">Xóa key</button></p>` : ''}
+    <form id="ownForm" class="${hasOwn ? 'hidden' : ''}">
+      <ol class="small" style="padding-left:18px;margin:0 0 12px">${guide.steps.map((x) => `<li style="margin-bottom:4px">${x}</li>`).join('')}</ol>
+      <div class="field"><label>Redirect / Callback URL</label>
+        <div style="display:flex;gap:6px"><input class="input" id="redir" readonly value="${esc(redirectUrl)}"><button class="btn" type="button" id="copyRedir">Chép</button></div></div>
+      ${p.appFields.map((f) => f.type === 'checkbox'
+        ? `<label class="small" style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><input type="checkbox" class="chk" name="${f.key}" id="a-${f.key}"> ${esc(f.label)}</label>`
+        : `<div class="field"><label for="a-${f.key}">${esc(f.label)}</label><input class="input" id="a-${f.key}" name="${f.key}" type="${f.type}" placeholder="${esc(f.placeholder || '')}" required autocomplete="off"></div>`).join('')}
+      <div id="ownErr"></div>
+      <button class="btn btn-primary btn-block" type="submit">Lưu key &amp; kết nối</button>
+      <p class="muted small" style="margin-bottom:0">Key được mã hóa trên máy chủ và chỉ dùng cho shop của bạn. <a href="/huong-dan-ket-noi#${p.id}" target="_blank">Hướng dẫn chi tiết</a></p>
+    </form></div>`;
+  const err = (e) => { box.querySelector('#ownErr').innerHTML = `<div class="form-error">${esc(e.message)}</div>`; };
+  box.querySelector('#useShared')?.addEventListener('click', () => go(false).catch((e) => toast(e.message, 5000)));
+  box.querySelector('#useOwn')?.addEventListener('click', () => go(true).catch((e) => toast(e.message, 5000)));
+  box.querySelector('#editOwn')?.addEventListener('click', () => box.querySelector('#ownForm').classList.remove('hidden'));
+  box.querySelector('#delOwn')?.addEventListener('click', async () => {
+    await api(`/api/connect/${p.id}/app`, { method: 'DELETE' });
+    toast('Đã xóa key');
+    oauthPanel(p, box, m);
+  });
+  box.querySelector('#copyRedir').addEventListener('click', async () => {
+    const input = box.querySelector('#redir');
+    try { await navigator.clipboard.writeText(input.value); toast('Đã chép'); } catch { input.select(); }
+  });
+  box.querySelector('#ownForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true;
+    try {
+      await api(`/api/connect/${p.id}/app`, { method: 'PUT', body });
+      await go(true);
+    } catch (e2) {
+      err(e2);
+      btn.disabled = false;
+    }
+  });
+}
+
 function addShopModal() {
   const PLAT_DESC = { shopee: 'Ủy quyền qua Shopee Open Platform', lazada: 'Ủy quyền qua Lazada Open Platform', tiktok: 'Ủy quyền qua TikTok Shop Partner', woocommerce: 'Dùng REST API key của website', demo: 'Dữ liệu mẫu để dùng thử' };
   const m = modal('Thêm shop', `<p class="muted small" style="margin-top:0">Chọn sàn bạn muốn kết nối:</p>
-    <div class="plat-grid">${state.platforms.map((p) => `<button class="plat-opt" data-plat="${p.id}"><span class="plat" style="background:${esc(p.color)}">${esc(p.name)}</span><small>${PLAT_DESC[p.id] || ''}${p.configured ? '' : ' · <b>chưa cấu hình trên máy chủ</b>'}</small></button>`).join('')}</div>
+    <div class="plat-grid">${state.platforms.map((p) => `<button class="plat-opt" data-plat="${p.id}"><span class="plat" style="background:${esc(p.color)}">${esc(p.name)}</span><small>${PLAT_DESC[p.id] || ''}</small></button>`).join('')}</div>
     <div id="platForm"></div>`);
   m.el.querySelectorAll('[data-plat]').forEach((b) => b.addEventListener('click', async () => {
     const p = platform(b.dataset.plat);
     const box = m.el.querySelector('#platForm');
     if (p.authType === 'oauth') {
       try {
-        const { url } = await api(`/api/connect/${p.id}/authorize`);
-        location.href = url;
+        await oauthPanel(p, box, m);
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (err) {
         box.innerHTML = `<div class="form-error" style="margin-top:12px">${esc(err.message)}</div>`;
       }
@@ -613,7 +698,8 @@ async function boot() {
   const meta = await api('/api/platforms');
   state.platforms = meta.platforms;
   state.statuses = meta.statuses;
-  try { state.user = (await api('/api/me')).user; } catch { state.user = null; }
+  // Không tự chuyển trang ở đây để link #/register từ trang chủ vẫn mở đúng form đăng ký.
+  try { state.user = (await api('/api/me', { noRedirect: true })).user; } catch { state.user = null; }
 }
 
 window.addEventListener('hashchange', route);
