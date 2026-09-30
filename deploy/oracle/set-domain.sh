@@ -31,6 +31,14 @@ for h in "$DOMAIN" "www.$DOMAIN"; do
   if [[ "$ip" == "$PUBLIC_IP" ]]; then echo "  ✅ $h → $ip"
   else echo "  ❌ $h → ${ip:-chưa trỏ}"; [[ "$h" == "$DOMAIN" ]] && ok=0; fi
 done
+if (( ok == 0 )) && curl -fsSI --max-time 8 "http://$DOMAIN/" 2>/dev/null | grep -qi '^server: cloudflare'; then
+  echo
+  echo "Tên miền đang bật Proxy của Cloudflare (đám mây cam) nên chưa lấy được chứng chỉ HTTPS."
+  echo "  1. Cloudflare → DNS: bấm vào đám mây cam của '@' và 'www' → chuyển thành 'DNS only' (xám) → Save."
+  echo "  2. Đợi 1–2 phút rồi chạy lại lệnh này."
+  echo "  3. Khi báo ✅ Xong: bật lại Proxied (cam) và vào SSL/TLS → Overview → chọn 'Full (strict)'."
+  exit 1
+fi
 if (( ok == 0 )); then
   echo
   echo "Tên miền chính chưa trỏ về máy này. Vào trang quản lý DNS và tạo:"
@@ -58,6 +66,7 @@ for _ in $(seq 1 24); do
     echo "✅ Xong! Trang chủ: https://$DOMAIN   Ứng dụng: https://$DOMAIN/app/"
     [[ -n "$WWW" ]] && echo "   https://$WWW tự chuyển về https://$DOMAIN"
     echo "   Đăng nhập lại một lần vì địa chỉ đã đổi."
+    echo "   Dùng Cloudflare: giờ có thể bật lại Proxied (cam), SSL/TLS chọn 'Full (strict)' (đừng chọn Flexible)."
     exit 0
   fi
   sleep 5
