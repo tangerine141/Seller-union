@@ -226,7 +226,8 @@ function hbars(rows, labelFn, valueFn, fmt) {
 
 function emptyShops() {
   return `<div class="card empty"><div class="big">🛍️</div><h2>Chưa có shop nào được kết nối</h2>
-    <p>Kết nối shop Shopee, Lazada, TikTok Shop, WooCommerce — hoặc tạo shop demo để xem thử.</p>
+    <p>Kết nối shop Shopee, Lazada, TikTok Shop, WooCommerce bằng key app người bán của bạn — hoặc tạo shop demo để xem thử.
+      <a href="/huong-dan-ket-noi" target="_blank">Xem hướng dẫn lấy key</a>.</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
       <a class="btn btn-primary" href="#/shops?add=1">${icon('plus')}Thêm shop</a>
       <button class="btn" data-action="demo">Tạo shop demo</button></div></div>`;
@@ -563,9 +564,7 @@ async function oauthPanel(p, box, m) {
     location.href = url;
   };
   box.innerHTML = `<div style="margin-top:16px">
-    ${p.configured ? `<button class="btn btn-primary btn-block" id="useShared">Kết nối ${esc(p.name)}</button>
-      <p class="muted small center" style="margin:8px 0 0">hoặc dùng key riêng của shop bạn:</p>` : ''}
-    <h2 style="margin-top:12px">Kết nối bằng key riêng</h2>
+    <h2 style="margin-top:12px">Kết nối ${esc(p.name)} bằng key của shop bạn</h2>
     ${hasOwn ? `<p class="small">✅ Bạn đã lưu key ${esc(p.name)}. <button class="btn btn-sm btn-primary" id="useOwn">Kết nối ngay</button>
       <button class="btn btn-sm" id="editOwn">Nhập lại key</button> <button class="btn btn-sm btn-danger" id="delOwn">Xóa key</button></p>` : ''}
     <form id="ownForm" class="${hasOwn ? 'hidden' : ''}">
@@ -578,7 +577,9 @@ async function oauthPanel(p, box, m) {
       <div id="ownErr"></div>
       <button class="btn btn-primary btn-block" type="submit">Lưu key &amp; kết nối</button>
       <p class="muted small" style="margin-bottom:0">Key được mã hóa trên máy chủ và chỉ dùng cho shop của bạn. <a href="/huong-dan-ket-noi#${p.id}" target="_blank">Hướng dẫn chi tiết</a></p>
-    </form></div>`;
+    </form>
+    ${p.configured ? `<p class="muted small center" style="margin:12px 0 0">Hệ thống có app chung đã được sàn duyệt: <button class="btn btn-sm" id="useShared">Kết nối bằng app chung</button></p>` : ''}
+    </div>`;
   const err = (e) => { box.querySelector('#ownErr').innerHTML = `<div class="form-error">${esc(e.message)}</div>`; };
   box.querySelector('#useShared')?.addEventListener('click', () => go(false).catch((e) => toast(e.message, 5000)));
   box.querySelector('#useOwn')?.addEventListener('click', () => go(true).catch((e) => toast(e.message, 5000)));
@@ -608,7 +609,7 @@ async function oauthPanel(p, box, m) {
 }
 
 function addShopModal() {
-  const PLAT_DESC = { shopee: 'Ủy quyền qua Shopee Open Platform', lazada: 'Ủy quyền qua Lazada Open Platform', tiktok: 'Ủy quyền qua TikTok Shop Partner', woocommerce: 'Dùng REST API key của website', demo: 'Dữ liệu mẫu để dùng thử' };
+  const PLAT_DESC = { shopee: 'Dùng Partner ID/Key của shop bạn', lazada: 'Dùng App Key/Secret của shop bạn', tiktok: 'Dùng App Key/Secret/Service ID của shop bạn', woocommerce: 'Dùng REST API key của website', demo: 'Dữ liệu mẫu để dùng thử' };
   const m = modal('Thêm shop', `<p class="muted small" style="margin-top:0">Chọn sàn bạn muốn kết nối:</p>
     <div class="plat-grid">${state.platforms.map((p) => `<button class="plat-opt" data-plat="${p.id}"><span class="plat" style="background:${esc(p.color)}">${esc(p.name)}</span><small>${PLAT_DESC[p.id] || ''}</small></button>`).join('')}</div>
     <div id="platForm"></div>`);

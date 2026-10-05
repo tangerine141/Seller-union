@@ -91,20 +91,16 @@ Xong! Mở:
 - `https://tenmien-cua-ban.vn` — trang chủ
 - `https://tenmien-cua-ban.vn/app/` — ứng dụng (đăng ký tài khoản đầu tiên)
 
-## Bước 7 — Kết nối sàn thật (khi có key)
+## Bước 7 — Kết nối shop
 
-```bash
-cd ~/seller-union
-git pull
-bash deploy/oracle/set-keys.sh
-```
+Mỗi shop (kể cả shop của bạn) kết nối bằng **key app người bán của chính mình**, ngay trong ứng dụng, không cần sửa máy chủ:
 
-Script hỏi lần lượt key của Shopee / Lazada / TikTok Shop (bỏ trống = giữ nguyên), lưu vào `.env` và khởi động lại app.
+1. Làm theo `https://tenmien-cua-ban.vn/huong-dan-ket-noi` để tạo app người bán miễn phí trên Shopee / Lazada / TikTok Shop và lấy key.
+2. Vào `https://tenmien-cua-ban.vn/app/` → **Shop → Thêm shop → chọn sàn → dán key → Lưu key & kết nối** → đăng nhập sàn và bấm đồng ý.
 
-Redirect URL khai báo trên trang nhà phát triển của sàn:
-- Shopee: `https://tenmien-cua-ban.vn/connect/shopee/callback`
-- Lazada: `https://tenmien-cua-ban.vn/connect/lazada/callback`
-- TikTok Shop: `https://tenmien-cua-ban.vn/connect/tiktok/callback`
+Gửi link `/huong-dan-ket-noi` cho các shop khác để họ tự làm.
+
+> Tùy chọn: khi đã có đăng ký kinh doanh và được sàn duyệt **app dành cho bên thứ ba**, chạy `bash deploy/oracle/set-keys.sh` để đặt key chung cho cả hệ thống.
 
 ## Bước 8 — SEO
 

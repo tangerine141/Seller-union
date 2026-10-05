@@ -7,7 +7,7 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 const FEATURES = [
-  ['🔗', 'Kết nối đa sàn', 'Shopee, Lazada, TikTok Shop, WooCommerce… gom về một tài khoản duy nhất. Không cần đăng nhập từng sàn.'],
+  ['🔗', 'Kết nối đa sàn', 'Shopee, Lazada, TikTok Shop, WooCommerce… gom về một tài khoản. Mỗi shop kết nối bằng key app người bán miễn phí của chính mình.'],
   ['🔄', 'Đồng bộ tự động', 'Đơn hàng, trạng thái giao hàng và tồn kho được cập nhật định kỳ mỗi 15 phút hoặc bấm đồng bộ ngay.'],
   ['📊', 'Thống kê doanh thu', 'Doanh thu theo ngày, theo sàn, theo shop; tỉ lệ hủy/hoàn; sản phẩm bán chạy; cảnh báo sắp hết hàng.'],
   ['🖨️', 'In phiếu hàng loạt', 'In phiếu giao hàng có mã vạch, danh sách lấy hàng gộp theo SKU và bảng kê bàn giao ĐVVC. Hỗ trợ A4, A5, A6 và máy in nhiệt 80mm.'],
@@ -19,32 +19,40 @@ const PLATFORMS = {
   shopee: {
     slug: 'shopee',
     name: 'Shopee',
-    auth: 'Đăng nhập tài khoản người bán Shopee và bấm “Xác nhận ủy quyền”. Seller Union dùng Shopee Open Platform API chính thức, không lưu mật khẩu của bạn.',
+    guide: 'shopee',
+    keys: 'Partner ID và Partner Key',
+    app: 'Tạo app người bán miễn phí trên open.shopee.com (loại tài khoản “Shopee Seller”, cần CCCD), khai báo Redirect URL và lấy Partner ID, Partner Key.',
     points: ['Đồng bộ đơn Chờ xác nhận, Chờ lấy hàng, Đang giao, Hoàn thành, Hủy, Trả hàng', 'Lấy tên sản phẩm, phân loại, SKU, số lượng và giá sau giảm', 'Tồn kho sản phẩm đang bán', 'Tự động gia hạn token truy cập'],
   },
   lazada: {
     slug: 'lazada',
     name: 'Lazada',
-    auth: 'Đăng nhập Lazada Seller Center và cấp quyền cho ứng dụng qua Lazada Open Platform (OAuth).',
+    guide: 'lazada',
+    keys: 'App Key và App Secret',
+    app: 'Tạo app loại “Seller In-house APP” miễn phí trên open.lazada.com, điền Callback URL và lấy App Key, App Secret.',
     points: ['Đồng bộ đơn hàng và trạng thái vận chuyển', 'Gộp các dòng sản phẩm trùng SKU thành số lượng', 'Mã vận đơn, đơn vị vận chuyển', 'Tồn kho theo từng SKU'],
   },
   'tiktok-shop': {
     slug: 'tiktok-shop',
     name: 'TikTok Shop',
-    auth: 'Ủy quyền qua TikTok Shop Partner Center. Mỗi lần ủy quyền kết nối shop gắn với tài khoản người bán.',
+    guide: 'tiktok',
+    keys: 'App Key, App Secret và Service ID',
+    app: 'Tạo “Custom App” miễn phí trên partner.tiktokshop.com, điền Redirect URL và lấy App Key, App Secret, Service ID.',
     points: ['Đồng bộ đơn từ livestream và video bán hàng', 'Trạng thái Chờ giao, Đang vận chuyển, Đã giao, Hủy', 'Thông tin người nhận và mã vận đơn', 'Tồn kho theo SKU'],
   },
   woocommerce: {
     slug: 'woocommerce',
     name: 'WooCommerce',
-    auth: 'Tạo REST API key (quyền Read) trong WooCommerce → Cài đặt → Nâng cao → REST API, rồi dán vào Seller Union.',
+    keys: 'Consumer key và Consumer secret',
+    app: 'Trong trang quản trị WordPress: WooCommerce → Cài đặt → Nâng cao → REST API → Thêm key (quyền Read).',
     points: ['Đồng bộ đơn từ website bán hàng riêng', 'Sản phẩm, giá và tồn kho', 'Kết hợp số liệu website với các sàn TMĐT', 'Kết nối qua HTTPS an toàn'],
   },
 };
 
 const FAQ = [
   ['Seller Union có miễn phí không?', 'Bạn có thể tự cài đặt mã nguồn lên máy chủ riêng và dùng miễn phí. Bản dùng thử có sẵn shop demo để trải nghiệm không cần tài khoản sàn.'],
-  ['Có an toàn khi kết nối shop không?', 'Seller Union dùng API chính thức và cơ chế ủy quyền (OAuth) của từng sàn, không yêu cầu mật khẩu đăng nhập sàn. Token truy cập được mã hóa AES-256 trước khi lưu.'],
+  ['Cần chuẩn bị gì để kết nối shop?', 'Mỗi shop tự tạo một app người bán miễn phí trên sàn bằng tài khoản của mình (Shopee Seller, Lazada Seller In-house, TikTok Custom App), rồi dán key vào mục Thêm shop. Xem trang Hướng dẫn kết nối để làm từng bước.'],
+  ['Có an toàn khi kết nối shop không?', 'Bạn không cần đưa mật khẩu sàn. Key app và token truy cập được mã hóa AES-256 khi lưu, chỉ dùng để đọc đơn hàng và sản phẩm của shop bạn. Bạn có thể xóa key hoặc thu hồi quyền trên trang của sàn bất cứ lúc nào.'],
   ['Tôi có thể dùng trên điện thoại không?', 'Có. Mở trang web trên điện thoại rồi chọn “Thêm vào màn hình chính” để dùng như một ứng dụng, xem đơn và thống kê mọi lúc.'],
   ['Có in được phiếu giao hàng hàng loạt không?', 'Có. Chọn nhiều đơn rồi bấm In: phiếu giao hàng có mã vạch, danh sách lấy hàng gộp theo SKU, bảng kê bàn giao cho đơn vị vận chuyển.'],
   ['Xuất file báo cáo ra Excel được không?', 'Được. Mọi danh sách đơn hàng, sản phẩm, doanh thu theo ngày đều xuất ra CSV (UTF-8) mở trực tiếp bằng Excel hoặc Google Sheets.'],
@@ -167,7 +175,7 @@ function home() {
 <section id="san-ho-tro" class="section alt">
   <div class="wrap">
     <h2>Sàn thương mại điện tử được hỗ trợ</h2>
-    <p class="lead center">Kết nối qua API chính thức. Có thể mở rộng thêm sàn mới.</p>
+    <p class="lead center">Mỗi shop kết nối bằng key app người bán của chính mình. <a href="/huong-dan-ket-noi">Xem hướng dẫn kết nối</a>.</p>
     <div class="grid grid-4">${platformCards()}</div>
   </div>
 </section>
@@ -177,7 +185,7 @@ function home() {
     <h2>Bắt đầu trong 3 bước</h2>
     <ol class="steps">
       <li><b>Tạo tài khoản</b><span>Đăng ký bằng email, miễn phí.</span></li>
-      <li><b>Kết nối shop</b><span>Chọn sàn và ủy quyền. Dữ liệu 30 ngày gần nhất được đồng bộ ngay.</span></li>
+      <li><b>Kết nối shop</b><span>Tạo app người bán miễn phí trên sàn, dán key vào mục Thêm shop (<a href="/huong-dan-ket-noi">hướng dẫn</a>). Dữ liệu 30 ngày gần nhất được đồng bộ ngay.</span></li>
       <li><b>Quản lý tập trung</b><span>Xem thống kê, lọc đơn, in phiếu và xuất báo cáo tại một nơi.</span></li>
     </ol>
   </div>
@@ -252,8 +260,8 @@ function platformPage(p) {
     <ul class="checks">${p.points.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
     <h2>Cách kết nối</h2>
     <ol class="steps">
-      <li><b>Đăng nhập ${esc(config.siteName)}</b><span>Vào mục <i>Shop</i> → <i>Thêm shop</i>.</span></li>
-      <li><b>Chọn ${esc(p.name)}</b><span>${esc(p.auth)}</span></li>
+      <li><b>Lấy ${esc(p.keys)}</b><span>${esc(p.app)}${p.guide ? ` <a href="/huong-dan-ket-noi#${p.guide}">Xem hướng dẫn từng bước</a>.` : ''}</span></li>
+      <li><b>Dán key vào ${esc(config.siteName)}</b><span>Đăng nhập → <i>Shop</i> → <i>Thêm shop</i> → <i>${esc(p.name)}</i> → dán key${p.guide ? ' → <i>Lưu key &amp; kết nối</i>, rồi đăng nhập ' + esc(p.name) + ' và bấm đồng ý' : ''}.</span></li>
       <li><b>Hoàn tất</b><span>Đơn hàng 30 ngày gần nhất được tải về ngay, sau đó tự đồng bộ mỗi 15 phút.</span></li>
     </ol>
     <h2>Sàn khác</h2>

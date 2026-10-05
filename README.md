@@ -12,7 +12,7 @@ Gồm 2 phần chạy chung trên một máy chủ:
 ## Tính năng
 
 - **Kết nối shop**
-  - Shopee, Lazada, TikTok Shop: ủy quyền OAuth qua API chính thức (không lưu mật khẩu sàn), tự gia hạn token.
+  - Shopee, Lazada, TikTok Shop: mỗi shop dán **key app người bán của chính mình** (tạo miễn phí trên sàn), rồi đồng ý ủy quyền trên trang của sàn. Không cần mật khẩu sàn, tự gia hạn token.
   - WooCommerce: dán REST API key (bắt buộc HTTPS).
   - **Shop demo**: sinh dữ liệu mẫu 30 ngày để dùng thử ngay.
   - Không giới hạn số shop mỗi sàn. Token/API key được mã hóa AES‑256‑GCM trong DB.
@@ -76,18 +76,24 @@ Hoặc tự cài trên máy chủ bất kỳ:
 
 Dữ liệu nằm trong file SQLite `data/seller-union.db` — nhớ sao lưu định kỳ.
 
-## Kết nối API các sàn thật
+## Kết nối shop trên sàn
 
-Mỗi sàn yêu cầu đăng ký tài khoản nhà phát triển và được duyệt app trước khi kết nối shop thật. Sau khi có key, điền vào `.env` và khai báo Redirect/Callback URL:
+**Cách chính – mỗi shop dùng key riêng (không cần đăng ký kinh doanh):**
 
-| Sàn | Nơi đăng ký | Biến môi trường | Redirect URL |
-|---|---|---|---|
-| Shopee | open.shopee.com | `SHOPEE_PARTNER_ID`, `SHOPEE_PARTNER_KEY` | `{SITE_URL}/connect/shopee/callback` |
-| Lazada | open.lazada.com | `LAZADA_APP_KEY`, `LAZADA_APP_SECRET` | `{SITE_URL}/connect/lazada/callback` |
-| TikTok Shop | partner.tiktokshop.com | `TIKTOK_APP_KEY`, `TIKTOK_APP_SECRET`, `TIKTOK_SERVICE_ID` | `{SITE_URL}/connect/tiktok/callback` |
-| WooCommerce | WooCommerce → Cài đặt → Nâng cao → REST API (quyền Read) | — (nhập trong app) | — |
+1. Chủ shop tạo app người bán miễn phí trên sàn bằng tài khoản của mình, khai báo Redirect URL `{SITE_URL}/connect/<sàn>/callback`:
 
-Khi chưa cấu hình key chung, mỗi shop có thể **dùng key riêng**: tự tạo app người bán (Shopee Seller / Lazada Seller In‑house / TikTok Custom App) bằng tài khoản của chính mình rồi dán key trong **Thêm shop**. Key riêng được mã hóa và chỉ dùng cho shop của người đó. Hướng dẫn công khai cho chủ shop: `/huong-dan-ket-noi`.
+   | Sàn | Nơi tạo app | Loại app | Key cần lấy |
+   |---|---|---|---|
+   | Shopee | open.shopee.com | Tài khoản **Shopee Seller** | Partner ID, Partner Key |
+   | Lazada | open.lazada.com | **Seller In‑house APP** | App Key, App Secret |
+   | TikTok Shop | partner.tiktokshop.com | **Custom App** | App Key, App Secret, Service ID |
+   | WooCommerce | WordPress → WooCommerce → Cài đặt → Nâng cao → REST API | Key quyền Read | Consumer key/secret |
+
+2. Trong app: **Shop → Thêm shop → chọn sàn → dán key → Lưu key & kết nối**, rồi đăng nhập sàn và bấm đồng ý.
+
+Key được mã hóa AES‑256, chỉ dùng cho shop của người đó. Hướng dẫn từng bước để gửi cho chủ shop: **`/huong-dan-ket-noi`**.
+
+**Tùy chọn – app chung của hệ thống:** khi đã có đăng ký kinh doanh và được sàn duyệt app dành cho bên thứ ba (Shopee Third‑party Partner, Lazada ISV, TikTok Public App), điền key vào `.env` (`SHOPEE_PARTNER_ID/KEY`, `LAZADA_APP_KEY/SECRET`, `TIKTOK_APP_KEY/SECRET/SERVICE_ID`, hoặc chạy `deploy/oracle/set-keys.sh`). Khi đó form Thêm shop có thêm nút "Kết nối bằng app chung".
 
 > Lưu ý: phần gọi API sàn được viết theo tài liệu công khai (Shopee v2, Lazada Open Platform, TikTok Shop API 202309) và đã có test cho thuật toán ký và ánh xạ dữ liệu, nhưng chưa chạy với tài khoản sàn thật. Khi có key, nên thử trên môi trường sandbox của từng sàn trước.
 

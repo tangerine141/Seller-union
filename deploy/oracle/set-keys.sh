@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Nhập API key của các sàn vào .env rồi khởi động lại app.
+# TÙY CHỌN: đặt key app CHUNG của hệ thống (chỉ khi đã được sàn duyệt app dành cho bên thứ ba).
+# Bình thường mỗi shop tự dán key riêng trong app (Shop → Thêm shop), không cần script này.
 # Chạy trên máy chủ:  bash deploy/oracle/set-keys.sh
 # Bỏ trống một ô = giữ nguyên giá trị cũ.
 set -euo pipefail
