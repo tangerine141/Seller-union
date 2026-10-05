@@ -93,7 +93,8 @@ say "Build và khởi động (lần đầu mất vài phút)"
 say "Cài lịch sao lưu hằng ngày"
 CRON_LINE="0 3 * * * cd $ROOT && bash deploy/oracle/backup.sh >> $ROOT/backups/backup.log 2>&1"
 mkdir -p backups
-( crontab -l 2>/dev/null | grep -v 'deploy/oracle/backup.sh' ; echo "$CRON_LINE" ) | crontab -
+# "|| true": crontab trống thì grep trả mã 1, không được để set -e dừng script.
+( { crontab -l 2>/dev/null || true; } | { grep -v 'deploy/oracle/backup.sh' || true; }; echo "$CRON_LINE" ) | crontab -
 
 SITE_URL=$(grep '^SITE_URL=' .env | cut -d= -f2)
 say "Xong! Mở $SITE_URL (trang chủ) và $SITE_URL/app/ (ứng dụng)"

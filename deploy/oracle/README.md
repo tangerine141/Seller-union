@@ -109,6 +109,20 @@ Gửi link `/huong-dan-ket-noi` cho các shop khác để họ tự làm.
 
 ---
 
+## Tự động cập nhật code (khuyên dùng)
+
+Bật một lần, sau đó mỗi khi có code mới trên GitHub, máy tự sao lưu → tải code → build → khởi động lại (kiểm tra mỗi 10 phút):
+
+```bash
+cd ~/seller-union
+git pull
+bash deploy/oracle/enable-auto-update.sh
+```
+
+- Repo riêng tư: script hỏi tên GitHub và token (quyền Contents: Read-only) một lần rồi lưu lại.
+- Lệnh này cũng bật lại lịch sao lưu 3h sáng.
+- Xem nhật ký: `tail -f ~/seller-union/backups/auto-update.log` · Tắt: `bash deploy/oracle/enable-auto-update.sh --off`
+
 ## Vận hành hằng ngày
 
 Tất cả lệnh chạy trong thư mục `~/seller-union`:
